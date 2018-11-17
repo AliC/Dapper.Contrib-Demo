@@ -19,21 +19,44 @@ namespace Persistence.Dapper
         [Test]
         public void InsertOrder()
         {
-            IEnumerable<Order> orders;
-            Order expectedOrder;
+            IEnumerable<Order> actualOrders;
+            IEnumerable<OrderLine> actualOrderLines;
+
+            Order expectedOrder = new Order
+            {
+                DistributorId = 1,
+                ContactName = "Alastair"
+            };
+
+            var expectedOrderLines = new List<OrderLine>
+            {
+                new OrderLine
+                {
+                    ProductId = 2,
+                    Quantity = 3
+                }
+            };
 
             using (IDbConnection connection = Database.GetConnection())
             {
-                expectedOrder = new Order { ProductId = 1, ContactName = "Alastair" };
                 _newId = connection.Insert(expectedOrder);
 
-                orders = connection.Query<Order>("SELECT * FROM Orders WHERE Id = @Id", new { Id = _newId });
+                expectedOrderLines.ForEach(ol => ol.OrderId = (int)_newId);
+                connection.Insert(expectedOrderLines);
+                
+                actualOrders = connection.Query<Order>("SELECT * FROM Orders WHERE Id = @Id", new { Id = _newId });
+                actualOrderLines = connection.Query<OrderLine>("SELECT * FROM OrderLines WHERE OrderId = @Id", new { Id = _newId });
             }
-            
-            Assert.That(orders, Is.Not.Null);
-            var actualOrder = orders.First();
-            Assert.That(actualOrder.ProductId, Is.EqualTo(expectedOrder.ProductId));
+
+            Assert.That(actualOrders, Is.Not.Null);
+            CollectionAssert.IsNotEmpty(actualOrders);
+
+            var actualOrder = actualOrders.First();
+            Assert.That(actualOrder.DistributorId, Is.EqualTo(expectedOrder.DistributorId));
             Assert.That(actualOrder.ContactName, Is.EqualTo(expectedOrder.ContactName));
+
+            Assert.That(actualOrderLines, Is.Not.Null);
+            CollectionAssert.IsNotEmpty(actualOrderLines);
         }
 
         [SetUp]

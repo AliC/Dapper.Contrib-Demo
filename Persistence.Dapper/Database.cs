@@ -39,7 +39,6 @@ namespace Persistence.Dapper
                     command.ExecuteNonQuery();
                 }
             }
-
         }
     }
 }
