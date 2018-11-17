@@ -25,5 +25,21 @@ namespace Persistence.Dapper
         {
             return new SqlConnection(GetConnectionString("Dapper"));
         }
+
+        internal static void DeleteOrder(long newId)
+        {
+            using (IDbConnection connection = GetConnection())
+            {
+                using (SqlCommand command = ((SqlConnection)connection).CreateCommand())
+                {
+                    connection.Open();
+
+                    command.CommandText = "DELETE FROM Orders WHERE Id = @Id";
+                    command.Parameters.AddWithValue("Id", newId);
+                    command.ExecuteNonQuery();
+                }
+            }
+
+        }
     }
 }
