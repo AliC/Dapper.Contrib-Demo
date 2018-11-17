@@ -3,6 +3,7 @@
 -- SELECT * FROM dbo.OrderLines
 -- SELECT * FROM dbo.Orders o LEFT OUTER JOIN dbo.OrderLines ol ON o.Id = ol.OrderId
 -- DELETE dbo.Orders
+-- DELETE dbo.OrderLines
 -- DROP TABLE dbo.Orders
 -- DROP TABLE dbo.OrderLines
 -- CREATE TABLE Orders ( Id INT IDENTITY PRIMARY KEY NOT NULL, DistributorId INT NOT NULL, ContactName NVARCHAR(32) NULL)

@@ -20,43 +20,69 @@ namespace Persistence.Dapper
         public void InsertOrder()
         {
             IEnumerable<Order> actualOrders;
-            IEnumerable<OrderLine> actualOrderLines;
 
             Order expectedOrder = new Order
             {
                 DistributorId = 1,
-                ContactName = "Alastair"
-            };
-
-            var expectedOrderLines = new List<OrderLine>
-            {
-                new OrderLine
+                ContactName = "Alastair",
+                OrderLines = new List<OrderLine>
                 {
-                    ProductId = 2,
-                    Quantity = 3
+                    new OrderLine { ProductId = 2, Quantity = 3 },
+                    new OrderLine { ProductId = 3, Quantity = 1 }
                 }
             };
 
+            var sql = "SELECT * FROM Orders o LEFT OUTER JOIN OrderLines ol ON o.Id = ol.OrderId WHERE o.Id = @Id";
             using (IDbConnection connection = Database.GetConnection())
             {
-                _newId = connection.Insert(expectedOrder);
+                expectedOrder.Id = (int)connection.Insert(expectedOrder);
+                _newId = expectedOrder.Id;
 
-                expectedOrderLines.ForEach(ol => ol.OrderId = (int)_newId);
-                connection.Insert(expectedOrderLines);
-                
-                actualOrders = connection.Query<Order>("SELECT * FROM Orders WHERE Id = @Id", new { Id = _newId });
-                actualOrderLines = connection.Query<OrderLine>("SELECT * FROM OrderLines WHERE OrderId = @Id", new { Id = _newId });
+                foreach (var orderLine in expectedOrder.OrderLines)
+                {
+                    orderLine.OrderId = expectedOrder.Id;
+                    orderLine.Id = (int)connection.Insert(orderLine);
+                }
+
+                actualOrders = connection.Query(sql, GetMap(), new { expectedOrder.Id }).Distinct();
             }
 
             Assert.That(actualOrders, Is.Not.Null);
             CollectionAssert.IsNotEmpty(actualOrders);
+            Assert.That(actualOrders.Count(), Is.EqualTo(1));
 
             var actualOrder = actualOrders.First();
             Assert.That(actualOrder.DistributorId, Is.EqualTo(expectedOrder.DistributorId));
             Assert.That(actualOrder.ContactName, Is.EqualTo(expectedOrder.ContactName));
 
-            Assert.That(actualOrderLines, Is.Not.Null);
-            CollectionAssert.IsNotEmpty(actualOrderLines);
+            Assert.That(actualOrder.OrderLines, Is.Not.Null);
+            CollectionAssert.IsNotEmpty(actualOrder.OrderLines);
+            Assert.That(actualOrder.OrderLines.Count(), Is.EqualTo(expectedOrder.OrderLines.Count()));
+            Assert.True(actualOrder.OrderLines.All(ol => ol.OrderId == expectedOrder.Id));
+
+            ((List<OrderLine>)expectedOrder.OrderLines).ForEach(eol =>
+                Assert.True(eol.ProductId == actualOrder.OrderLines.Single(aol => aol.Id == eol.Id).ProductId));
+            ((List<OrderLine>)expectedOrder.OrderLines).ForEach(eol =>
+                Assert.True(eol.Quantity == actualOrder.OrderLines.Single(aol => aol.Id == eol.Id).Quantity));
+        }
+
+        private Func<Order, OrderLine, Order> GetMap()
+        {
+            var existingOrders = new Dictionary<int, Order>();
+
+            return (o, ol) =>
+            {
+                if (!existingOrders.TryGetValue(o.Id, out var order))
+                {
+                    order = o;
+                    order.OrderLines = new List<OrderLine>();
+                    existingOrders.Add(order.Id, order);
+                }
+
+                ((IList<OrderLine>)order.OrderLines).Add(ol);
+
+                return order;
+            };
         }
 
         [SetUp]
